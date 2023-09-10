@@ -4,6 +4,20 @@ document.addEventListener("DOMContentLoaded", function () {
   const categoryDropdown = document.getElementById("categoryDropdown");
   const submitButton = document.getElementById("submit");
   const itemList = document.getElementById("itemList");
+  const items = [];
+
+  axios
+    .get(
+      "https://crudcrud.com/api/896fc3a2eb364018af2dd438089bf9f8/appointment"
+    )
+    .then((res) => {
+      res.data.forEach((r) => {
+        items.push(r);
+        const listItem = createListItem(r.ExpenseAmount, r.ItemDescription, r.ItemCategory);
+        itemList.appendChild(listItem);
+      });
+    })
+    .catch((err) => console.log(err));
 
   submitButton.addEventListener("click", function () {
     const amount = expenseAmountInput.value;
@@ -13,7 +27,7 @@ document.addEventListener("DOMContentLoaded", function () {
     const listItem = createListItem(amount, description, category);
     itemList.appendChild(listItem);
 
-    saveInLocalStorage(amount, description, category);
+    saveInCrudCrud(amount, description, category,listItem);
 
     expenseAmountInput.value = "";
     expenseDescriptionInput.value = "";
@@ -21,6 +35,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
   function createListItem(amount, description, category) {
     const listItem = document.createElement("li");
+
     listItem.innerHTML = `
         Expense: ${amount}, Description: ${description}, Category: ${category}
         <button class="edit">Edit</button>
@@ -35,11 +50,12 @@ document.addEventListener("DOMContentLoaded", function () {
         expenseAmountInput.value != "" ||
         expenseDescriptionInput.value != ""
       ) {
-        alert("cannot update since you already have an entry filled");
+        alert("Cannot update since you already have an entry filled");
         return;
       }
+      const itemId = listItem.getAttribute("data-item-id");
       itemList.removeChild(listItem);
-      deleteFromLocalStorage(amount,description,category);
+      deleteFromCrudCrud(itemId);
       expenseAmountInput.value = amount;
       expenseDescriptionInput.value = description;
       categoryDropdown.value = category;
@@ -47,35 +63,36 @@ document.addEventListener("DOMContentLoaded", function () {
     });
 
     deleteButton.addEventListener("click", function () {
+      const itemId = listItem.getAttribute("data-item-id");
       itemList.removeChild(listItem);
+      deleteFromCrudCrud(itemId);
+    });    
 
-      deleteFromLocalStorage(amount,description,category);
-    });
     return listItem;
   }
 
-  function saveInLocalStorage(amount, description, category) {
-    const data = {
-      Expense: amount,
-      Description: description,
-      Category: category,
-    };
+  function saveInCrudCrud(amount, description, category,listItem) {
+    axios
+      .post(
+        "https://crudcrud.com/api/896fc3a2eb364018af2dd438089bf9f8/appointment",
+        {
+          ExpenseAmount: amount,
+          ItemDescription: description,
+          ItemCategory: category,
+        }
+      )
+      .then((res) => {
+        listItem.setAttribute("data-item-id",res.data._id)
+        console.log(res)
+      })
+      .catch((err) => console.log(err));
 
-    const lsItemList = JSON.parse(localStorage.getItem("expenses")) || [];
-    lsItemList.push(data);
-    localStorage.setItem("expenses", JSON.stringify(lsItemList));
+
   }
 
-  function deleteFromLocalStorage(amount, description, category) {
-    const lsItemList = JSON.parse(localStorage.getItem('expenses')) || [];
-    const index = lsItemList.findIndex(item => (
-      item.Expense === amount &&
-      item.Description === description
-    ));
-
-    if (index !== -1) {
-        lsItemList.splice(index, 1);
-        localStorage.setItem('expenses', JSON.stringify(lsItemList));
-      }
+  function deleteFromCrudCrud(itemId){
+    axios.delete(`https://crudcrud.com/api/896fc3a2eb364018af2dd438089bf9f8/appointment/${itemId}`)
+    .then(res=>console.log(res))
+    .catch(err=>console.log(err))
   }
 });
